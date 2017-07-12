@@ -7,13 +7,14 @@ import (
 
 	"github.com/chzyer/readline"
 	"github.com/sensu/sensu-go/cli"
+	"github.com/sensu/sensu-go/cli/commands/hooks"
 	"github.com/sensu/sensu-go/types"
 	"github.com/spf13/cobra"
 )
 
 // DeleteCommand adds a command that allows user to delete checks
 func DeleteCommand(cli *cli.SensuCli) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "delete [NAME]",
 		Short:        "delete checks given name",
 		SilenceUsage: true,
@@ -25,6 +26,16 @@ func DeleteCommand(cli *cli.SensuCli) *cobra.Command {
 			}
 
 			name := args[0]
+
+			if skipConfirm, _ := cmd.Flags().GetBool("skip-confirm"); !skipConfirm {
+				if ok, err := ConfirmDelete(name, cmd.OutOrStdout()); err != nil {
+					return err
+				} else if !ok {
+					fmt.Fprintln(cmd.OutOrStdout(), "Canceled")
+					return nil
+				}
+			}
+
 			check := &types.CheckConfig{Name: name}
 			err := cli.Client.DeleteCheck(check)
 			if err != nil {
@@ -34,7 +45,16 @@ func DeleteCommand(cli *cli.SensuCli) *cobra.Command {
 			fmt.Fprintln(cmd.OutOrStdout(), "OK")
 			return nil
 		},
+		Annotations: map[string]string{
+			// We want to be able to run this command regardless of whether the CLI
+			// has been configured.
+			hooks.ConfigurationRequirement: hooks.ConfigurationNotRequired,
+		},
 	}
+
+	cmd.Flags().Bool("skip-confirm", false, "skip interactive confirmation prompt")
+
+	return cmd
 }
 
 func ConfirmDelete(name string, stdout io.Writer) (bool, error) {
@@ -42,8 +62,8 @@ func ConfirmDelete(name string, stdout io.Writer) (bool, error) {
 
 	// TODO: Colourize to emphaize destructive action
 	message := `
-	Are you sure you would like to delete resource '` + name + `'?
-	Type '` + confirmation + `' to confirm.
+Are you sure you would like to delete resource '` + name + `'?
+Type '` + confirmation + `' to confirm.
 
 	`
 	stdout.Write([]byte(message))
