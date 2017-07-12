@@ -64,8 +64,8 @@ func ConfirmDelete(name string, stdout io.Writer) (bool, error) {
 	message := `
 Are you sure you would like to delete resource '` + name + `'?
 Type '` + confirmation + `' to confirm.
-
 	`
+
 	stdout.Write([]byte(message))
 
 	rl, err := readline.New("> ")
