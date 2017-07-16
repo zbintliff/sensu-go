@@ -8,6 +8,7 @@ import (
 	"github.com/chzyer/readline"
 	"github.com/sensu/sensu-go/cli"
 	"github.com/sensu/sensu-go/cli/commands/hooks"
+	"github.com/sensu/sensu-go/cli/elements/globals"
 	"github.com/sensu/sensu-go/types"
 	"github.com/spf13/cobra"
 )
@@ -60,13 +61,11 @@ func DeleteCommand(cli *cli.SensuCli) *cobra.Command {
 func ConfirmDelete(name string, stdout io.Writer) (bool, error) {
 	confirmation := strings.ToUpper(name)
 
-	// TODO: Colourize to emphaize destructive action
-	message := `
-Are you sure you would like to delete resource '` + name + `'?
-Type '` + confirmation + `' to confirm.
-	`
+	title := globals.TitleStyle("Are you sure you would like to ") + globals.CTATextStyle("delete") + globals.TitleStyle(" resource '") + globals.PrimaryTextStyle(name) + globals.TitleStyle("'?")
+	question := "Enter '" + globals.PrimaryTextStyle(confirmation) + "' to confirm."
 
-	stdout.Write([]byte(message))
+	// TODO: Colourize to emphaize destructive action
+	fmt.Fprintf(stdout, "%s\n\n%s\n", title, question)
 
 	rl, err := readline.New("> ")
 	if err != nil {
