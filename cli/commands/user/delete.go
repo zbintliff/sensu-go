@@ -4,12 +4,13 @@ import (
 	"fmt"
 
 	"github.com/sensu/sensu-go/cli"
+	"github.com/sensu/sensu-go/cli/commands/helpers"
 	"github.com/spf13/cobra"
 )
 
 // DeleteCommand adds a command that allows user to delete users
 func DeleteCommand(cli *cli.SensuCli) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:          "delete [USERNAME]",
 		Short:        "delete user given username",
 		SilenceUsage: true,
@@ -21,6 +22,16 @@ func DeleteCommand(cli *cli.SensuCli) *cobra.Command {
 			}
 
 			username := args[0]
+
+			if skipConfirm, _ := cmd.Flags().GetBool("skip-confirm"); !skipConfirm {
+				if confirmed, err := helpers.ConfirmDelete(name, cmd.OutOrStdout()); err != nil {
+					return err
+				} else if !confirmed {
+					fmt.Fprintln(cmd.OutOrStdout(), "Canceled")
+					return nil
+				}
+			}
+
 			err := cli.Client.DeleteUser(username)
 			if err != nil {
 				return err
@@ -30,4 +41,8 @@ func DeleteCommand(cli *cli.SensuCli) *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().Bool("skip-confirm", false, "skip interactive confirmation prompt")
+
+	return cmd
 }

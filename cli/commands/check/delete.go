@@ -2,13 +2,10 @@ package check
 
 import (
 	"fmt"
-	"io"
-	"strings"
 
-	"github.com/chzyer/readline"
 	"github.com/sensu/sensu-go/cli"
+	"github.com/sensu/sensu-go/cli/commands/helpers"
 	"github.com/sensu/sensu-go/cli/commands/hooks"
-	"github.com/sensu/sensu-go/cli/elements/globals"
 	"github.com/sensu/sensu-go/types"
 	"github.com/spf13/cobra"
 )
@@ -29,9 +26,9 @@ func DeleteCommand(cli *cli.SensuCli) *cobra.Command {
 			name := args[0]
 
 			if skipConfirm, _ := cmd.Flags().GetBool("skip-confirm"); !skipConfirm {
-				if ok, err := ConfirmDelete(name, cmd.OutOrStdout()); err != nil {
+				if confirmed, err := helpers.ConfirmDelete(name, cmd.OutOrStdout()); err != nil {
 					return err
-				} else if !ok {
+				} else if !confirmed {
 					fmt.Fprintln(cmd.OutOrStdout(), "Canceled")
 					return nil
 				}
@@ -56,23 +53,4 @@ func DeleteCommand(cli *cli.SensuCli) *cobra.Command {
 	cmd.Flags().Bool("skip-confirm", false, "skip interactive confirmation prompt")
 
 	return cmd
-}
-
-func ConfirmDelete(name string, stdout io.Writer) (bool, error) {
-	confirmation := strings.ToUpper(name)
-
-	title := globals.TitleStyle("Are you sure you would like to ") + globals.CTATextStyle("delete") + globals.TitleStyle(" resource '") + globals.PrimaryTextStyle(name) + globals.TitleStyle("'?")
-	question := "Enter '" + globals.PrimaryTextStyle(confirmation) + "' to confirm."
-
-	// TODO: Colourize to emphaize destructive action
-	fmt.Fprintf(stdout, "%s\n\n%s\n", title, question)
-
-	rl, err := readline.New("> ")
-	if err != nil {
-		return false, err
-	}
-	defer rl.Close()
-
-	line, _ := rl.Readline()
-	return confirmation == line, nil
 }
