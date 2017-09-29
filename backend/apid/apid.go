@@ -117,6 +117,7 @@ func registerRestrictedResources(
 	commonRouter := NewSubrouter(
 		router.NewRoute(),
 		middlewares.Environment{Store: store},
+		middlewares.SimpleLogger{},
 		// middlewares.Authentication{},
 		// middlewares.AllowList{Store: store},
 		// middlewares.Authorization{Store: store},

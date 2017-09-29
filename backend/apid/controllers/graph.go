@@ -23,26 +23,11 @@ func (c *GraphController) Register(r *mux.Router) {
 
 // many handles requests to /info
 func (c *GraphController) query(w http.ResponseWriter, r *http.Request) {
-	// fields := graphql.Fields{
-	// 	"hello": &graphql.Field{
-	// 		Type: graphql.String,
-	// 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-	// 			return "world", nil
-	// 		},
-	// 	},
-	// }
-	// rootQuery := graphql.ObjectConfig{Name: "RootQuery", Fields: fields}
-	// schemaConfig := graphql.SchemaConfig{Query: graphql.NewObject(rootQuery)}
-	// schema, err := graphql.NewSchema(schemaConfig)
-	// if err != nil {
-	// 	logger.WithError(err).Fatal("failed to create new schema")
-	// }
-
 	params := graphql.Params{
 		Schema:        graphqlSchema,
 		RequestString: r.URL.Query().Get("query"),
 	}
-	logger.WithField("query", params).Info("Received GraphQL query")
+	logger.WithField("query", params).Debug("received GraphQL query")
 
 	res := graphql.Do(params)
 	if len(res.Errors) > 0 {
@@ -63,7 +48,7 @@ func init() {
 
 	viewerObj := graphql.NewObject(graphql.ObjectConfig{
 		Name:        "Viewer",
-		Description: "describes resources available to the currently authorized user",
+		Description: "describes resources available to the curr1nt user",
 		Fields: graphql.Fields{
 			"events": &graphql.Field{
 				Type: graphql.String,
