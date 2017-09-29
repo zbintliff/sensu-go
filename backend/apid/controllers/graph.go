@@ -23,24 +23,26 @@ func (c *GraphController) Register(r *mux.Router) {
 
 // many handles requests to /info
 func (c *GraphController) query(w http.ResponseWriter, r *http.Request) {
-	fields := graphql.Fields{
-		"hello": &graphql.Field{
-			Type: graphql.String,
-			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-				return "world", nil
-			},
-		},
-	}
-	rootQuery := graphql.ObjectConfig{Name: "RootQuery", Fields: fields}
-	schemaConfig := graphql.SchemaConfig{Query: graphql.NewObject(rootQuery)}
-	schema, err := graphql.NewSchema(schemaConfig)
-	if err != nil {
-		logger.WithError(err).Fatal("failed to create new schema")
-	}
+	// fields := graphql.Fields{
+	// 	"hello": &graphql.Field{
+	// 		Type: graphql.String,
+	// 		Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+	// 			return "world", nil
+	// 		},
+	// 	},
+	// }
+	// rootQuery := graphql.ObjectConfig{Name: "RootQuery", Fields: fields}
+	// schemaConfig := graphql.SchemaConfig{Query: graphql.NewObject(rootQuery)}
+	// schema, err := graphql.NewSchema(schemaConfig)
+	// if err != nil {
+	// 	logger.WithError(err).Fatal("failed to create new schema")
+	// }
 
-	query := r.URL.Query().Get("query")
-	params := graphql.Params{Schema: schema, RequestString: query}
-	logger.WithField("query", query).Info("got params")
+	params := graphql.Params{
+		Schema:        graphqlSchema,
+		RequestString: r.URL.Query().Get("query"),
+	}
+	logger.WithField("query", params).Info("Received GraphQL query")
 
 	res := graphql.Do(params)
 	if len(res.Errors) > 0 {
@@ -52,4 +54,41 @@ func (c *GraphController) query(w http.ResponseWriter, r *http.Request) {
 	rJSON, _ := json.Marshal(res)
 	w.Header().Set("Content-Type", "application/json")
 	fmt.Fprintf(w, "%s", rJSON)
+}
+
+var graphqlSchema graphql.Schema
+
+func init() {
+	var err error
+
+	viewerObj := graphql.NewObject(graphql.ObjectConfig{
+		Name:        "Viewer",
+		Description: "describes resources available to the currently authorized user",
+		Fields: graphql.Fields{
+			"events": &graphql.Field{
+				Type: graphql.String,
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					return "werd", nil
+				},
+			},
+		},
+	})
+
+	rootObj := graphql.NewObject(graphql.ObjectConfig{
+		Name: "RootQuery",
+		Fields: graphql.Fields{
+			"viewer": &graphql.Field{
+				Type: viewerObj,
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					return nil, nil // TODO? User? Viewer warpper type?
+				},
+			},
+		},
+	})
+	graphqlSchema, err = graphql.NewSchema(graphql.SchemaConfig{
+		Query: rootObj,
+	})
+	if err != nil {
+		logger.WithError(err).Fatal("failed to create new schema")
+	}
 }
