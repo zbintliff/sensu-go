@@ -3,13 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "found": "^0.3.4",
+    "found-relay": "^0.3.0-alpha.7",
     "lodash": "^4.17.4",
     "material-ui": "^0.17.4",
     "prop-types": "^15.5.8",
     "react": "^15.5.4",
     "react-dom": "^15.5.4",
     "react-relay": "^1.4.1",
-    "react-router-dom": "^4.1.1",
     "react-tap-event-plugin": "^2.0.1",
     "typeface-roboto": "^0.0.22"
   },
