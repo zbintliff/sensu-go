@@ -117,9 +117,9 @@ func registerRestrictedResources(
 	commonRouter := NewSubrouter(
 		router.NewRoute(),
 		middlewares.Environment{Store: store},
-		middlewares.Authentication{},
-		middlewares.AllowList{Store: store},
-		middlewares.Authorization{Store: store},
+		// middlewares.Authentication{},
+		// middlewares.AllowList{Store: store},
+		// middlewares.Authorization{Store: store},
 	)
 
 	assetsController := &controllers.AssetsController{
@@ -188,4 +188,7 @@ func registerRestrictedResources(
 		Store: store,
 	}
 	usersController.Register(commonRouter)
+
+	graphController := &controllers.GraphController{Store: store}
+	graphController.Register(commonRouter)
 }
