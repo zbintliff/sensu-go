@@ -5,7 +5,7 @@ import { TableRow, TableRowColumn } from 'material-ui/Table';
 function EventRow({ entity, check, timestamp, ...other }) {
   return (
     <TableRow {...other}>
-      {other.children[0] /* checkbox passed down from TableBody*/}
+      {other.children[0] /* checkbox passed down from TableBody */}
       <TableRowColumn>{entity.id}</TableRowColumn>
       <TableRowColumn>{check.name}</TableRowColumn>
       <TableRowColumn>{check.command}</TableRowColumn>

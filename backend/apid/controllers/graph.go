@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -29,7 +30,7 @@ type GraphController struct {
 // Register should define an association between HTTP routes and their
 // respective handlers defined within this Controller.
 func (c *GraphController) Register(r *mux.Router) {
-	r.HandleFunc("/graphql", c.query).Methods(http.MethodGet)
+	r.HandleFunc("/graphql", c.query).Methods(http.MethodPost)
 }
 
 // many handles requests to /info
@@ -39,8 +40,21 @@ func (c *GraphController) query(w http.ResponseWriter, r *http.Request) {
 	ctx = context.WithValue(ctx, types.EnvironmentKey, "*")
 	ctx = context.WithValue(ctx, types.StoreKey, c.Store)
 
-	queryStr := r.URL.Query().Get("query")
-	res := execQuery(ctx, queryStr)
+	bodyBytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	defer r.Body.Close()
+
+	rBody := map[string]interface{}{}
+	err = json.Unmarshal(bodyBytes, &rBody)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	res := execQuery(ctx, rBody["query"].(string))
 	if len(res.Errors) > 0 {
 		logger.
 			WithField("errors", res.Errors).

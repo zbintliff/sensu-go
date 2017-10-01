@@ -124,6 +124,7 @@ func httpRouter(d *Dashboardd) *mux.Router {
 
 	r.Handle("/events", httputil.NewSingleHostReverseProxy(target))
 	r.Handle("/entities", httputil.NewSingleHostReverseProxy(target))
+	r.Handle("/graphql", httputil.NewSingleHostReverseProxy(target))
 
 	// Serve static content
 	if d.Dir != "" {

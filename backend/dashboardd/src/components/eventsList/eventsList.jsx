@@ -1,13 +1,20 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Table, TableBody, TableHeader, TableHeaderColumn, TableRow } from 'material-ui/Table';
 import map from 'lodash/map';
 
-import EventRow from 'components/eventRow';
+import {
+  Table,
+  TableBody,
+  TableHeader,
+  TableHeaderColumn,
+  TableRow,
+} from 'material-ui/Table';
+import EventRow from '../eventRow';
 
 const styles = require('./eventsList.css');
 
 function EventsList({ events }) {
+  console.info('dfasdfasdf', events);
   return (
     <Table className={styles.table}>
       <TableHeader>
