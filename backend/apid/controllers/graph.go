@@ -62,7 +62,7 @@ func (c *GraphController) query(w http.ResponseWriter, r *http.Request) {
 
 func execQuery(ctx context.Context, queryStr string) *graphql.Result {
 	params := graphql.Params{
-		Schema:        graphqlSchema,
+		Schema:        GraphqlSchema,
 		RequestString: queryStr,
 		Context:       ctx,
 	}
@@ -78,7 +78,8 @@ func execQuery(ctx context.Context, queryStr string) *graphql.Result {
 	return graphql.Do(params)
 }
 
-var graphqlSchema graphql.Schema
+// GraphqlSchema ...
+var GraphqlSchema graphql.Schema
 
 func init() {
 	var err error
@@ -383,7 +384,7 @@ func init() {
 			},
 		},
 	})
-	graphqlSchema, err = graphql.NewSchema(graphql.SchemaConfig{
+	GraphqlSchema, err = graphql.NewSchema(graphql.SchemaConfig{
 		Query: queryType,
 		// Mutation: mutationType,
 	})

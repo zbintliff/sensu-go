@@ -654,6 +654,12 @@
 			"revisionTime": "2017-09-14T02:26:12Z"
 		},
 		{
+			"checksumSHA1": "qKY85cG32F4voS6eSE2wuxI1L9w=",
+			"path": "github.com/graphql-go/graphql/testutil",
+			"revision": "f447794cf2d7601c2298f0643fa8a3740f6d6d78",
+			"revisionTime": "2017-09-28T21:20:12Z"
+		},
+		{
 			"checksumSHA1": "BteUGxhWUAw7/pa3f8+KrQckcO8=",
 			"path": "github.com/graphql-go/relay",
 			"revision": "9054c3f9e4f31c403e404f1292d6d12874d1fdc5",
