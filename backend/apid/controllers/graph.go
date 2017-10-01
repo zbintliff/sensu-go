@@ -98,6 +98,7 @@ var GraphqlSchema graphql.Schema
 func init() {
 	var err error
 	var checkEventType *graphql.Object
+	var checkConfigType *graphql.Object
 	var metricEventType *graphql.Object
 	var entityType *graphql.Object
 
@@ -225,6 +226,21 @@ func init() {
 		},
 	})
 
+	checkConfigType = graphql.NewObject(graphql.ObjectConfig{
+		Name:        "CheckConfig",
+		Description: "The `CheckConfig` object type represents  the specification of a check",
+		Fields: graphql.Fields{
+			"name":          &graphql.Field{Type: graphql.String},
+			"interval":      &graphql.Field{Type: graphql.Int},
+			"subscriptions": &graphql.Field{Type: graphql.NewList(graphql.String)},
+			"command":       &graphql.Field{Type: graphql.String},
+			"handlers":      &graphql.Field{Type: graphql.NewList(graphql.String)},
+			"runtimeAssets": &graphql.Field{Type: graphql.NewList(graphql.String)},
+			"environment":   &graphql.Field{Type: graphql.String},
+			"organization":  &graphql.Field{Type: graphql.String},
+		},
+	})
+
 	checkEventType = graphql.NewObject(graphql.ObjectConfig{
 		Name:        "CheckEvent",
 		Description: "A check result",
@@ -239,6 +255,7 @@ func init() {
 			"status":    AliasField(graphql.Int, "Check", "Status"),
 			"issued":    AliasField(timeScalar, "Check", "Issued"),
 			"executed":  AliasField(timeScalar, "Check", "Executed"),
+			"config":    AliasField(checkConfigType, "Check", "Config"),
 		},
 		IsTypeOf: func(p graphql.IsTypeOfParams) bool {
 			if e, ok := p.Value.(*types.Event); ok {
@@ -294,12 +311,6 @@ func init() {
 						types.FixtureEntity("d"),
 						types.FixtureEntity("e"),
 						types.FixtureEntity("f"),
-						types.FixtureEntity("a"),
-						types.FixtureEntity("a"),
-						types.FixtureEntity("a"),
-						types.FixtureEntity("a"),
-						types.FixtureEntity("a"),
-						types.FixtureEntity("a"),
 						types.FixtureEntity("a"),
 						types.FixtureEntity("a"),
 						types.FixtureEntity("a"),
