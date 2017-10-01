@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/sensu/sensu-go/backend/apid/controllers"
 	"github.com/sensu/sensu-go/backend/apid/middlewares"
@@ -46,9 +47,13 @@ func (a *APId) Start() error {
 	registerAuthenticationResources(router, a.Store)
 	registerRestrictedResources(router, a.Store, a.BackendStatus)
 
+	corsHandler := handlers.CORS(
+		handlers.AllowedHeaders([]string{"content-type"}),
+	)
+
 	a.httpServer = &http.Server{
 		Addr:         fmt.Sprintf("%s:%d", a.Host, a.Port),
-		Handler:      router,
+		Handler:      corsHandler(router),
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
@@ -103,7 +108,11 @@ func (a *APId) Err() <-chan error {
 }
 
 func registerAuthenticationResources(router *mux.Router, store store.Store) {
-	authRouter := NewSubrouter(router.NewRoute(), middlewares.RefreshToken{})
+	authRouter := NewSubrouter(
+		router.NewRoute(),
+		middlewares.RefreshToken{},
+		middlewares.SimpleLogger{},
+	)
 
 	authenticationController := controllers.AuthenticationController{Store: store}
 	authenticationController.Register(authRouter)
