@@ -2,6 +2,7 @@ package keepalived
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -21,6 +22,8 @@ type KeepaliveMonitor struct {
 	timer   *time.Timer
 	stopped int32
 	failing int32
+
+	mu sync.Mutex
 }
 
 // Start initializes the monitor and starts its monitoring goroutine.
@@ -42,12 +45,16 @@ func (monitorPtr *KeepaliveMonitor) Start() {
 		for {
 			select {
 			case <-monitorPtr.reset:
+				monitorPtr.mu.Lock()
+
 				if !timer.Stop() {
 					<-timer.C
 				}
 				if monitorPtr.IsStopped() {
+					monitorPtr.mu.Unlock()
 					return
 				}
+				monitorPtr.mu.Unlock()
 
 			case <-timer.C:
 				// timed out keepalive
@@ -91,7 +98,10 @@ func (monitorPtr *KeepaliveMonitor) Start() {
 
 				atomic.CompareAndSwapInt32(&monitorPtr.failing, 0, 1)
 			}
+
+			monitorPtr.mu.Lock()
 			timer.Reset(timerDuration)
+			monitorPtr.mu.Unlock()
 		}
 	}()
 }
@@ -135,6 +145,9 @@ func (monitorPtr *KeepaliveMonitor) IsStopped() bool {
 
 // Reset the monitor's timer to emit an event at a given time.
 func (monitorPtr *KeepaliveMonitor) Reset(t int64) {
+	monitorPtr.mu.Lock()
+	defer monitorPtr.mu.Unlock()
+
 	if monitorPtr.timer == nil {
 		monitorPtr.Start()
 	}
