@@ -136,7 +136,7 @@ func TestExternalResolution(t *testing.T) {
 	assert.True(monitor.IsStopped())
 }
 
-func TestReset(t *testing.T) {
+func TestResetTo(t *testing.T) {
 	assert := assert.New(t)
 	event := types.FixtureEvent("entity", "keepalive")
 	store := &mockstore.MockStore{}
