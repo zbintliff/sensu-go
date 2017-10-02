@@ -88,9 +88,7 @@ func (monitorPtr *KeepaliveMonitor) Start() {
 
 			atomic.CompareAndSwapInt32(&monitorPtr.failing, 0, 1)
 
-			monitorPtr.timerMutex.Lock()
-			timer.Reset(timerDuration)
-			monitorPtr.timerMutex.Unlock()
+			monitorPtr.Reset(timerDuration)
 		}
 	}()
 }
@@ -128,8 +126,8 @@ func (monitorPtr *KeepaliveMonitor) IsStopped() bool {
 	return atomic.LoadInt32(&monitorPtr.stopped) > 0
 }
 
-// ResetTo the monitor's timer to emit an event at a given time.
-func (monitorPtr *KeepaliveMonitor) ResetTo(t int64) {
+// Reset the monitor's timer to some time.Duration in the future.
+func (monitorPtr *KeepaliveMonitor) Reset(d time.Duration) {
 	monitorPtr.timerMutex.Lock()
 	defer monitorPtr.timerMutex.Unlock()
 
@@ -137,14 +135,19 @@ func (monitorPtr *KeepaliveMonitor) ResetTo(t int64) {
 		monitorPtr.Start()
 	}
 
-	d := time.Duration(t - time.Now().Unix())
-	if d < 0 {
-		d = 0
-	}
-
 	timer := monitorPtr.timer
 	if !timer.Stop() {
 		<-timer.C
 	}
 	timer.Reset(d)
+}
+
+// ResetTo the monitor's timer to emit an event at a given time.
+func (monitorPtr *KeepaliveMonitor) ResetTo(t int64) {
+	d := time.Duration(t - time.Now().Unix())
+	if d < 0 {
+		d = 0
+	}
+
+	monitorPtr.Reset(d)
 }
