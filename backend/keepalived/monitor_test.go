@@ -149,7 +149,7 @@ func TestReset(t *testing.T) {
 		Store:  store,
 	}
 
-	monitor.Reset(time.Now().Unix())
+	monitor.ResetTo(time.Now().Unix())
 	time.Sleep(100 * time.Millisecond)
 	assert.True(monitor.IsStopped())
 }

@@ -128,8 +128,8 @@ func (monitorPtr *KeepaliveMonitor) IsStopped() bool {
 	return atomic.LoadInt32(&monitorPtr.stopped) > 0
 }
 
-// Reset the monitor's timer to emit an event at a given time.
-func (monitorPtr *KeepaliveMonitor) Reset(t int64) {
+// ResetTo the monitor's timer to emit an event at a given time.
+func (monitorPtr *KeepaliveMonitor) ResetTo(t int64) {
 	monitorPtr.timerMutex.Lock()
 	defer monitorPtr.timerMutex.Unlock()
 

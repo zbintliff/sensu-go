@@ -146,7 +146,7 @@ func (k *Keepalived) initFromStore() error {
 		// Recreate the monitor and reset its timer to alert when it's going to
 		// timeout.
 		monitor := k.MonitorFactory(event.Entity)
-		monitor.Reset(keepalive.Time)
+		monitor.ResetTo(keepalive.Time)
 		k.monitors[keepalive.EntityID] = monitor
 	}
 
