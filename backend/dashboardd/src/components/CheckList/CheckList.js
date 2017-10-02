@@ -10,14 +10,16 @@ import Table, {
   TableRow,
 } from 'material-ui/Table';
 import Checkbox from 'material-ui/Checkbox';
-import EventRow from '../EventRow';
+import Row from './CheckRow';
 
-const styles = require('./eventsList.css');
+const styles = require('./List.css');
 
-class EventsList extends React.Component {
+class CheckList extends React.Component {
   static propTypes = {
     viewer: PropTypes.shape({
-      events: PropTypes.array,
+      checks: PropTypes.shape({
+        edges: PropTypes.array.isRequired,
+      }),
     }).isRequired,
   }
 
@@ -28,19 +30,17 @@ class EventsList extends React.Component {
       <Table className={styles.table}>
         <TableHead>
           <TableRow>
-            <TableCell checkbox>
-              <Checkbox />
-            </TableCell>
-            <TableCell>Entity</TableCell>
+            <TableCell checkbox><Checkbox /></TableCell>
             <TableCell>Check</TableCell>
             <TableCell>Command</TableCell>
-            <TableCell>Timestamp</TableCell>
+            <TableCell>Subscribers</TableCell>
+            <TableCell>Interval</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {map(viewer.events, (event, i) => (
-            <EventRow key={i} event={event} />
-          ))}
+          {map(viewer.checks.edges, edge =>
+            <Row key={edge.cursor} check={edge.node} />,
+          )}
         </TableBody>
       </Table>
     );
@@ -49,11 +49,19 @@ class EventsList extends React.Component {
 
 
 export default createFragmentContainer(
-  EventsList,
+  CheckList,
   graphql`
-    fragment EventsList_viewer on Viewer {
-      events {
-        ...EventRow_event
+    fragment CheckList_viewer on Viewer {
+      checks(first: 200) {
+        edges {
+          node {
+            ...CheckRow_check
+          }
+          cursor
+        }
+        pageInfo {
+          hasNextPage
+        }
       }
     }
   `,

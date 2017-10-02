@@ -17,6 +17,7 @@ import (
 	"github.com/graphql-go/graphql"
 	graphqlast "github.com/graphql-go/graphql/language/ast"
 	"github.com/graphql-go/relay"
+	"github.com/sensu/sensu-go/backend/authorization"
 	"github.com/sensu/sensu-go/backend/store"
 	"github.com/sensu/sensu-go/types"
 	"golang.org/x/net/context"
@@ -36,9 +37,21 @@ func (c *GraphController) Register(r *mux.Router) {
 // many handles requests to /info
 func (c *GraphController) query(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	ctx = context.WithValue(ctx, types.OrganizationKey, "*")
-	ctx = context.WithValue(ctx, types.EnvironmentKey, "*")
+	ctx = context.WithValue(ctx, types.OrganizationKey, "")
+	ctx = context.WithValue(ctx, types.EnvironmentKey, "")
 	ctx = context.WithValue(ctx, types.StoreKey, c.Store)
+
+	// Fake being authenticated for demoing
+	actor := authorization.Actor{
+		Name: "admin",
+		Rules: []types.Rule{{
+			Type:         "*",
+			Environment:  "*",
+			Organization: "*",
+			Permissions:  types.RuleAllPerms,
+		}},
+	}
+	ctx = context.WithValue(ctx, types.AuthorizationActorKey, actor)
 
 	bodyBytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -101,6 +114,7 @@ func init() {
 	var checkConfigType *graphql.Object
 	var metricEventType *graphql.Object
 	var entityType *graphql.Object
+	var userType *graphql.Object
 
 	//
 	// Relay
@@ -108,10 +122,11 @@ func init() {
 	nodeDefinitions := relay.NewNodeDefinitions(relay.NodeDefinitionsConfig{
 		IDFetcher: func(id string, info graphql.ResolveInfo, ctx context.Context) (interface{}, error) {
 			// resolve id from global id
-			resolvedID := relay.FromGlobalID(id)
+			gidComponents := relay.FromGlobalID(id)
+			store := ctx.Value(types.StoreKey).(store.Store)
 
 			// based on id and its type, return the object
-			switch resolvedID.Type {
+			switch gidComponents.Type {
 			case "CheckEvent":
 				// TODO
 				return types.FixtureEvent("a", "b"), nil
@@ -119,8 +134,14 @@ func init() {
 				// TODO
 				return types.FixtureEvent("a", "b"), nil
 			case "Entity":
-				// TODO
-				return types.FixtureEntity("b"), nil
+				entity, err := store.GetEntityByID(ctx, gidComponents.ID)
+				return entity, err
+			case "Check":
+				check, err := store.GetCheckConfigByName(ctx, gidComponents.ID)
+				return check, err
+			case "User":
+				user, err := store.GetUser(gidComponents.ID)
+				return user, err
 			default:
 				return nil, errors.New("Unknown node type")
 			}
@@ -183,6 +204,27 @@ func init() {
 		},
 	})
 
+	userType = graphql.NewObject(graphql.ObjectConfig{
+		Name: "User",
+		Interfaces: []*graphql.Interface{
+			nodeDefinitions.NodeInterface,
+		},
+		Fields: graphql.Fields{
+			"id":       relay.GlobalIDField("User", nil),
+			"username": &graphql.Field{Type: graphql.String},
+			"disabled": &graphql.Field{Type: graphql.Boolean},
+			"hasPassword": &graphql.Field{
+				Type: graphql.Boolean,
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					user := p.Source.(*types.User)
+					return len(user.Password) > 0, nil
+				},
+			},
+			// NOTE: Something where we'd probably want to restrict access
+			"roles": &graphql.Field{Type: graphql.NewList(graphql.String)},
+		},
+	})
+
 	entityType = graphql.NewObject(graphql.ObjectConfig{
 		Name: "Entity",
 		Interfaces: []*graphql.Interface{
@@ -191,19 +233,14 @@ func init() {
 		},
 		Fields: graphql.Fields{
 			"id":               relay.GlobalIDField("Entity", nil),
+			"entityID":         AliasField(graphql.String, "ID"),
 			"class":            &graphql.Field{Type: graphql.String},
 			"subscriptions":    &graphql.Field{Type: graphql.NewList(graphql.String)},
 			"lastSeen":         &graphql.Field{Type: graphql.String},
 			"deregister":       &graphql.Field{Type: graphql.Boolean},
 			"keepaliveTimeout": &graphql.Field{Type: graphql.Int},
-			"environment": &graphql.Field{
-				Type:        graphql.NewNonNull(graphql.String),
-				Description: "The environment the resource belongs to.",
-			},
-			"organization": &graphql.Field{
-				Type:        graphql.NewNonNull(graphql.String),
-				Description: "The organization the resource belongs to.",
-			},
+			"environment":      &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
+			"organization":     &graphql.Field{Type: graphql.NewNonNull(graphql.String)},
 		},
 		IsTypeOf: func(p graphql.IsTypeOfParams) bool {
 			_, ok := p.Value.(*types.Entity)
@@ -227,9 +264,21 @@ func init() {
 	})
 
 	checkConfigType = graphql.NewObject(graphql.ObjectConfig{
-		Name:        "CheckConfig",
-		Description: "The `CheckConfig` object type represents  the specification of a check",
+		Name:        "Check",
+		Description: "The `Check` object type represents  the specification of a check",
+		Interfaces: []*graphql.Interface{
+			nodeDefinitions.NodeInterface,
+		},
 		Fields: graphql.Fields{
+			"id": &graphql.Field{
+				Name:        "id",
+				Description: "The ID of an object",
+				Type:        graphql.NewNonNull(graphql.ID),
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					check := p.Source.(*types.CheckConfig)
+					return relay.ToGlobalID("Check", check.Name), nil
+				},
+			},
 			"name":          &graphql.Field{Type: graphql.String},
 			"interval":      &graphql.Field{Type: graphql.Int},
 			"subscriptions": &graphql.Field{Type: graphql.NewList(graphql.String)},
@@ -289,9 +338,17 @@ func init() {
 		},
 	})
 
+	//
+	// Connections
+
 	entityConnectionDef := relay.ConnectionDefinitions(relay.ConnectionConfig{
 		Name:     "Entity",
 		NodeType: entityType,
+	})
+
+	checkConnectionDef := relay.ConnectionDefinitions(relay.ConnectionConfig{
+		Name:     "Check",
+		NodeType: checkConfigType,
 	})
 
 	viewerType := graphql.NewObject(graphql.ObjectConfig{
@@ -304,94 +361,51 @@ func init() {
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					args := relay.NewConnectionArguments(p.Args)
 
-					entities := []interface{}{
-						types.FixtureEntity("a"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
-						types.FixtureEntity("a"),
-						types.FixtureEntity("a"),
-						types.FixtureEntity("a"),
-						types.FixtureEntity("a"),
-						types.FixtureEntity("a"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
-						types.FixtureEntity("b"),
-						types.FixtureEntity("c"),
-						types.FixtureEntity("d"),
-						types.FixtureEntity("e"),
-						types.FixtureEntity("f"),
+					store := p.Context.Value(types.StoreKey).(store.Store)
+					entities, err := store.GetEntities(p.Context)
+
+					resources := []interface{}{}
+					for _, entity := range entities {
+						resources = append(resources, entity)
 					}
 
-					return relay.ConnectionFromArray(entities, args), nil
+					return relay.ConnectionFromArray(resources, args), err
+				},
+			},
+			"user": &graphql.Field{
+				Type: userType,
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					ctx := p.Context
+					actor := ctx.Value(types.AuthorizationActorKey).(authorization.Actor)
+					store := ctx.Value(types.StoreKey).(store.Store)
+
+					user, err := store.GetUser(actor.Name)
+					return user, err
 				},
 			},
 			"events": &graphql.Field{
 				Type: graphql.NewList(eventType),
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
-					events := []interface{}{
-						types.FixtureEvent("d", "e"),
-						types.FixtureEvent("b", "f"),
-						types.FixtureEvent("c", "b"),
-						types.FixtureEvent("d", "e"),
-						types.FixtureEvent("b", "f"),
-						types.FixtureEvent("c", "b"),
-						types.FixtureEvent("d", "e"),
-						types.FixtureEvent("b", "f"),
-						types.FixtureEvent("c", "b"),
-						types.FixtureEvent("d", "e"),
+					store := p.Context.Value(types.StoreKey).(store.Store)
+					events, err := store.GetEvents(p.Context)
+					return events, err
+				},
+			},
+			"checks": &graphql.Field{
+				Type: checkConnectionDef.ConnectionType,
+				Args: relay.ConnectionArgs,
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					args := relay.NewConnectionArguments(p.Args)
+
+					store := p.Context.Value(types.StoreKey).(store.Store)
+					checks, err := store.GetCheckConfigs(p.Context)
+
+					resources := []interface{}{}
+					for _, check := range checks {
+						resources = append(resources, check)
 					}
-					return events, nil
+
+					return relay.ConnectionFromArray(resources, args), err
 				},
 			},
 		},

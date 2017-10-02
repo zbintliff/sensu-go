@@ -4,6 +4,7 @@ import { graphql } from 'react-relay';
 
 import App from './components/App';
 import EventsList from './components/EventsList';
+import ChecksList from './components/CheckList';
 
 const AppQuery = graphql`
   query routes_App_Query {
@@ -21,6 +22,14 @@ const ListQuery = graphql`
   }
 `;
 
+const CheckRouteQuery = graphql`
+  query routes_CheckList_Query {
+    viewer {
+      ...CheckList_viewer
+    }
+  }
+`;
+
 export default makeRouteConfig(
   <Route
     path="/"
@@ -28,8 +37,14 @@ export default makeRouteConfig(
     query={AppQuery}
   >,
     <Route
+      path="events"
       Component={EventsList}
       query={ListQuery}
+    />
+    <Route
+      path="checks"
+      Component={ChecksList}
+      query={CheckRouteQuery}
     />
   </Route>,
 );

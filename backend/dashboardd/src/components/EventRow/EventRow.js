@@ -1,6 +1,7 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { TableRow, TableRowColumn } from 'material-ui/Table';
+import { TableRow, TableCell } from 'material-ui/Table';
+import Checkbox from 'material-ui/Checkbox';
 import { createFragmentContainer, graphql } from 'react-relay';
 
 class EventRow extends React.Component {
@@ -8,11 +9,11 @@ class EventRow extends React.Component {
     const { event: { entity, config, timestamp }, ...other } = this.props;
     return (
       <TableRow {...other}>
-        {other.children[0] /* checkbox passed down from TableBody */}
-        <TableRowColumn>{entity.id}</TableRowColumn>
-        <TableRowColumn>{config.name}</TableRowColumn>
-        <TableRowColumn>{config.command}</TableRowColumn>
-        <TableRowColumn>{timestamp}</TableRowColumn>
+        <TableCell checkbox><Checkbox /></TableCell>
+        <TableCell>{entity.entityID}</TableCell>
+        <TableCell>{config.name}</TableCell>
+        <TableCell>{config.command}</TableCell>
+        <TableCell>{timestamp}</TableCell>
       </TableRow>
     );
   }
@@ -37,7 +38,7 @@ export default createFragmentContainer(
           command
         }
         entity {
-          id
+          entityID
         }
       }
     }
