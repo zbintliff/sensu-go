@@ -65,9 +65,7 @@ func TestMonitorUpdate(t *testing.T) {
 }
 
 func TestStop(t *testing.T) {
-	monitor := &KeepaliveMonitor{
-		reset: make(chan interface{}),
-	}
+	monitor := &KeepaliveMonitor{}
 	monitor.Stop()
 	assert.True(t, monitor.IsStopped(), "IsStopped returns true if stopped")
 }
