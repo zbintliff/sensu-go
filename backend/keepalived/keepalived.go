@@ -1,3 +1,14 @@
+// Package keepalived provides client keepalive ("aliveness") monitoring
+// functionality for Sensu. The principle mechanism responsible for
+// keepalive monitoring is Keepalived.
+//
+// When a sensu-agent process connects, it begins sending keepalive
+// (transport.MessageTypeKeepalive) messages across the transport. These
+// are published to the keepalive message topic (messaging.TopicKeepalive)
+// to which a Keepalived subscribes.
+//
+// For more information on how Keepalives are handled, see the
+// documentation for Keepalived.
 package keepalived
 
 import (
@@ -28,6 +39,21 @@ type MonitorFactoryFunc func(e *types.Entity) *KeepaliveMonitor
 
 // Keepalived is responsible for monitoring keepalive events and recording
 // keepalives for entities.
+//
+// Each instance of Keepalived has a collection of KeepaliveMonitors that
+// are individually responsible for monitoring the aliveness of a Sensu
+// agent. They do this with limited coordination via the Store which
+// somewhat complicates their behavior.
+//
+// When a Keepalive message is received via the MessageBus, Keepalived
+// checks to see if there is an existing monitor for the Entity associated
+// with that Keepalive. If none exists, it creates a new monitor and
+// starts it. If a monitor exists, but has been stopped (see the documentation
+// for KeepaliveMonitor), it will create and start a new monitor.
+//
+// Keepalived also periodically sweeps its monitor map for stopped monitors
+// (representing clients that have been deregistered or have connected to
+// another backend and not reconnected here) so that they can be GC'd.
 type Keepalived struct {
 	MessageBus            messaging.MessageBus
 	HandlerCount          int
