@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/google/uuid"
 	"github.com/sensu/sensu-go/backend/messaging"
 	"github.com/sensu/sensu-go/backend/store"
@@ -32,6 +33,7 @@ type Session struct {
 	sendq        chan *transport.Message
 	checkChannel chan interface{}
 	bus          messaging.MessageBus
+	logger       logrus.FieldLogger
 }
 
 func newSessionHandler(s *Session) *handler.MessageHandler {
@@ -66,7 +68,8 @@ func NewSession(cfg SessionConfig, conn transport.Transport, bus messaging.Messa
 		return nil, fmt.Errorf("the environment '%s:%s' is invalid", cfg.Organization, cfg.Environment)
 	}
 
-	logger.Infof("agent connected: id=%s subscriptions=%s", cfg.AgentID, cfg.Subscriptions)
+	logEntry := logger.WithField("agentId", cfg.AgentID)
+	logEntry.WithField("subscriptions", cfg.Subscriptions).Info("agent connected")
 
 	s := &Session{
 		ID:           id.String(),
@@ -76,6 +79,7 @@ func NewSession(cfg SessionConfig, conn transport.Transport, bus messaging.Messa
 		wg:           &sync.WaitGroup{},
 		sendq:        make(chan *transport.Message, 10),
 		checkChannel: make(chan interface{}, 100),
+		logger:       logEntry,
 
 		store: store,
 		bus:   bus,
@@ -91,10 +95,10 @@ func (s *Session) receiveMessages(out chan *transport.Message) {
 		if err != nil {
 			switch err := err.(type) {
 			case transport.ConnectionError, transport.ClosedError:
-				logger.Error("recv error: ", err.Error())
+				s.logger.Error("recv error: ", err.Error())
 				return
 			default:
-				logger.Error("recv error: ", err.Error())
+				s.logger.Error("recv error: ", err.Error())
 				continue
 			}
 		}
@@ -104,7 +108,7 @@ func (s *Session) receiveMessages(out chan *transport.Message) {
 
 func (s *Session) recvPump() {
 	defer func() {
-		logger.Info("session disconnected - stopping recvPump")
+		s.logger.Info("session disconnected - stopping recvPump")
 		s.wg.Done()
 	}()
 
@@ -117,10 +121,10 @@ func (s *Session) recvPump() {
 				return
 			}
 
-			logger.Debugf("session - received message: %s", string(msg.Payload))
+			s.logger.Debugf("session - received message: %s", string(msg.Payload))
 			err := s.handler.Handle(msg.Type, msg.Payload)
 			if err != nil {
-				logger.Error("error handling message: ", msg)
+				s.logger.WithError(err).WithField("msg", msg).Error("error handling message")
 			}
 		case <-s.stopping:
 			return
@@ -131,7 +135,7 @@ func (s *Session) recvPump() {
 func (s *Session) subPump() {
 	defer func() {
 		s.wg.Done()
-		logger.Info("shutting down - stopping subPump")
+		s.logger.Info("shutting down - stopping subPump")
 	}()
 
 	for {
@@ -139,13 +143,13 @@ func (s *Session) subPump() {
 		case c := <-s.checkChannel:
 			request, ok := c.(*types.CheckRequest)
 			if !ok {
-				logger.Errorf("session received non-config over check channel")
+				s.logger.Errorf("session received non-config over check channel")
 				continue
 			}
 
 			configBytes, err := json.Marshal(request)
 			if err != nil {
-				logger.WithError(err).Error("session failed to serialize check request")
+				s.logger.WithError(err).Error("session failed to serialize check request")
 			}
 
 			msg := &transport.Message{
@@ -162,20 +166,20 @@ func (s *Session) subPump() {
 func (s *Session) sendPump() {
 	defer func() {
 		s.wg.Done()
-		logger.Info("shutting down - stopping sendPump")
+		s.logger.Info("shutting down - stopping sendPump")
 	}()
 
 	for {
 		select {
 		case msg := <-s.sendq:
-			logger.Debugf("session - sending message: %s", string(msg.Payload))
+			s.logger.Debugf("session - sending message: %s", string(msg.Payload))
 			err := s.conn.Send(msg)
 			if err != nil {
 				switch err := err.(type) {
 				case transport.ConnectionError, transport.ClosedError:
 					return
 				default:
-					logger.Error("send error:", err.Error())
+					s.logger.WithError(err).Error("send error")
 				}
 			}
 		case <-s.stopping:
@@ -198,9 +202,9 @@ func (s *Session) Start() error {
 
 	for _, sub := range s.cfg.Subscriptions {
 		topic := messaging.SubscriptionTopic(s.cfg.Organization, s.cfg.Environment, sub)
-		logger.Debugf("Subscribing to topic %s", topic)
+		s.logger.WithField("topic", topic).Debugf("subscribing to topic")
 		if err := s.bus.Subscribe(topic, s.cfg.AgentID, s.checkChannel); err != nil {
-			logger.WithError(err).Error("error starting subscription")
+			s.logger.WithError(err).Error("error starting subscription")
 			return err
 		}
 	}
