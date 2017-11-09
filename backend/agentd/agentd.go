@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -121,7 +120,7 @@ func (a *Agentd) webSocketHandler(w http.ResponseWriter, r *http.Request) {
 		Environment:   r.Header.Get(transport.HeaderKeyEnvironment),
 		Organization:  r.Header.Get(transport.HeaderKeyOrganization),
 		User:          r.Header.Get(transport.HeaderKeyUser),
-		Subscriptions: strings.Split(r.Header.Get(transport.HeaderKeySubscriptions), ","),
+		Subscriptions: r.Header[transport.HeaderKeySubscriptions],
 	}
 
 	session, err := NewSession(cfg, transport.NewTransport(conn), a.MessageBus, a.Store)
