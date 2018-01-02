@@ -21,11 +21,8 @@ type etcdStore struct {
 }
 
 // NewStore ...
-func (e *Etcd) NewStore() (store.Store, error) {
-	c, err := e.NewClient()
-	if err != nil {
-		return nil, err
-	}
+func (e *Etcd) NewStore() store.Store {
+	c := e.NewClient()
 
 	store := &etcdStore{
 		etcd:   e,
@@ -34,5 +31,5 @@ func (e *Etcd) NewStore() (store.Store, error) {
 	}
 
 	store.keepalivesPath = path.Join(etcdRoot, keepalivesPathPrefix, store.etcd.cfg.Name)
-	return store, nil
+	return store
 }

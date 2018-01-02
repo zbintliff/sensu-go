@@ -9,9 +9,7 @@ package etcd
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
-	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -19,6 +17,7 @@ import (
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/coreos/etcd/embed"
+	"github.com/coreos/etcd/etcdserver/api/v3client"
 	"github.com/coreos/etcd/pkg/transport"
 	"github.com/coreos/pkg/capnslog"
 )
@@ -101,9 +100,8 @@ func ensureDir(path string) error {
 
 // Etcd is a wrapper around github.com/coreos/etcd/embed.Etcd
 type Etcd struct {
-	cfg         *Config
-	etcd        *embed.Etcd
-	loopbackURL string
+	cfg  *Config
+	etcd *embed.Etcd
 }
 
 // NewEtcd returns a new, configured, and running Etcd. The running Etcd will
@@ -135,38 +133,6 @@ func NewEtcd(config *Config) (*Etcd, error) {
 	}
 
 	clientURLs := []url.URL{*listenClientURL}
-
-	var loopbackAddr string
-	// ensure we always listen on loopback, use https if we have
-	// a tls configuration.
-	if listenClientURL.Hostname() != "127.0.0.1" && listenClientURL.Hostname() != "localhost" {
-		// ensure we always listen on loopback
-
-		l, err := net.Listen("tcp", "127.0.0.1:0")
-		if err != nil {
-			return nil, err
-		}
-		if err := l.Close(); err != nil {
-			logger.Error(err)
-		}
-
-		addr, err := net.ResolveTCPAddr("tcp", l.Addr().String())
-		if err != nil {
-			return nil, err
-		}
-
-		scheme := "http"
-		if config.TLSConfig != nil {
-			scheme = "https"
-		}
-
-		loopbackClientURL, _ := url.Parse(fmt.Sprintf("%s://127.0.0.1:%d", scheme, addr.Port))
-
-		clientURLs = append(clientURLs, *loopbackClientURL)
-		loopbackAddr = loopbackClientURL.String()
-	} else {
-		loopbackAddr = listenClientURL.String()
-	}
 
 	listenPeerURL, err := url.Parse(config.ListenPeerURL)
 	if err != nil {
@@ -208,7 +174,7 @@ func NewEtcd(config *Config) (*Etcd, error) {
 		return nil, fmt.Errorf("Etcd failed to start in %d seconds", EtcdStartupTimeout)
 	}
 
-	return &Etcd{config, e, loopbackAddr}, nil
+	return &Etcd{config, e}, nil
 }
 
 // Err returns the error channel for Etcd or nil if no etcd is started.
@@ -225,48 +191,21 @@ func (e *Etcd) Shutdown() error {
 }
 
 // NewClient returns a new etcd v3 client. Clients must be closed after use.
-func (e *Etcd) NewClient() (*clientv3.Client, error) {
-	var tlsCfg *tls.Config
-	if e.cfg.TLSConfig != nil {
-		tlsCfg = e.cfg.TLSConfig.TLS
-	}
-
-	listeners := e.etcd.Clients
-	if len(listeners) == 0 {
-		return nil, errors.New("no etcd client listeners found for server")
-	}
-
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{e.loopbackURL},
-		DialTimeout: 5 * time.Second,
-		TLS:         tlsCfg,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return cli, nil
+func (e *Etcd) NewClient() *clientv3.Client {
+	return v3client.New(e.etcd.Server)
 }
 
 // Healthy returns true if Etcd is healthy, false otherwise.
 func (e *Etcd) Healthy() bool {
-	client, err := e.NewClient()
-	if err != nil {
-		return false
-	}
+	client := e.NewClient()
 	mapi := clientv3.NewMaintenance(client)
 	// TODO(greg): what can we do with the response? are there some operational
 	// parameters that are useful?
 	//
 	// https://godoc.org/github.com/coreos/etcd/etcdserver/etcdserverpb#StatusResponse
-	_, err = mapi.Status(context.TODO(), e.cfg.ListenClientURL)
+	_, err := mapi.Status(context.TODO(), e.cfg.ListenClientURL)
 	if err != nil {
 		return false
 	}
 	return true
-}
-
-// LoopbackURL returns the lookback URL used by etcd
-func (e *Etcd) LoopbackURL() string {
-	return e.loopbackURL
 }

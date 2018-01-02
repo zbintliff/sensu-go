@@ -386,15 +386,9 @@ func (b *Backend) Run() (derr error) {
 }
 
 // Migration performs the migration of data inside the store
-func (b *Backend) Migration() error {
-	_, err := b.etcd.NewStore()
-	if err != nil {
-		return err
-	}
-
-	logger.Infof("starting migration on the store with URL '%s'", b.etcd.LoopbackURL())
-	migration.Run(b.etcd.LoopbackURL())
-	return nil
+func (b *Backend) Migration() {
+	logger.Infof("starting migration on the store")
+	migration.Run(b.etcd.NewClient())
 }
 
 // Status returns a map of component name to boolean healthy indicator.

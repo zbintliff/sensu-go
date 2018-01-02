@@ -43,7 +43,7 @@ func testWithEtcd(t *testing.T, f func(store.Store)) {
 		}()
 	}
 
-	s, err := e.NewStore()
+	s := e.NewStore()
 	assert.NoError(t, err)
 	if err != nil {
 		assert.FailNow(t, "failed to get store from etcd")

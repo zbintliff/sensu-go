@@ -60,12 +60,7 @@ func NewStoreInstance() (*IntegrationTestStore, error) {
 		return nil, err
 	}
 
-	st, err := e.NewStore()
-	if err != nil {
-		_ = e.Shutdown()
-		removeTmp()
-		return nil, err
-	}
+	st := e.NewStore()
 
 	return &IntegrationTestStore{
 		Store:        st,

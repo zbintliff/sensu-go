@@ -50,7 +50,7 @@ func TestNewEtcd(t *testing.T) {
 		assert.FailNow(t, "unable to start new etcd")
 	}
 
-	client, err := e.NewClient()
+	client := e.NewClient()
 	assert.NoError(t, err)
 	kv := clientv3.NewKV(client)
 	assert.NotNil(t, kv)

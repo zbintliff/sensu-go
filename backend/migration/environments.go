@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
-	"time"
 
 	"github.com/coreos/etcd/clientv3"
 	"github.com/sensu/sensu-go/types"
@@ -14,17 +13,8 @@ import (
 // breaking change introduced in https://github.com/sensu/sensu-go/pull/574,
 // which effectively prevent users to update their environments because the new
 // organization attribute is required.
-func environments(storeURL string) {
+func environments(client *clientv3.Client) {
 	logger.Info("running environments migration")
-
-	client, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{storeURL},
-		DialTimeout: 5 * time.Second,
-	})
-
-	if err != nil {
-		logger.Fatal(err)
-	}
 
 	envsResponse, err := client.Get(context.Background(), "/sensu.io/environments", clientv3.WithPrefix())
 	if err != nil {
