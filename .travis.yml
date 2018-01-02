@@ -36,17 +36,18 @@ jobs:
     - provider: script
       skip_cleanup: true
       script: "./build.sh docker push master"
-      # on:
-      #   branch: master
+      on:
+        # branch: master
+        branch: /bugfix\/travis-deploy/
     - provider: script
       skip_cleanup: true
       script: "./build.sh docker push versioned"
-      on:
-        tags: true
+      # on:
+      #   tags: true
     - provider: script
       script: "./build-gcs-release.sh"
-      on:
-        tags: true
+      # on:
+      #   tags: true
 env:
   matrix:
   - GOARCH=amd64 TEST_SUITE=lint GOGC=off
