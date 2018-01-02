@@ -6,7 +6,7 @@ go:
 - 1.9.x
 branches:
   only:
-  - master
+  # - master
   - /^v\d+\.\d+(\.\d+)?(-\S*)?$/
 stages:
 - name: test
