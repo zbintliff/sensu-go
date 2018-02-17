@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/coreos/etcd/clientv3"
+	"github.com/coreos/etcd/compactor"
 	"github.com/coreos/etcd/embed"
 	"github.com/coreos/etcd/pkg/transport"
 	"github.com/coreos/pkg/capnslog"
@@ -26,6 +27,11 @@ import (
 )
 
 const (
+	// AutoCompactionRetention is the number of key revisions to retain during
+	// etcd compaction.
+	AutoCompactionRetention = "1"
+	// AutoCompactionMode tells etcd to run compaction on revision settings.
+	AutoCompactionMode = compactor.ModeRevision
 	// StateDir is the base path for Sensu's local storage.
 	StateDir = "/var/lib/sensu"
 	// EtcdStartupTimeout is the amount of time we give the embedded Etcd Server
@@ -53,6 +59,8 @@ func init() {
 type Config struct {
 	DataDir                 string
 	Name                    string // Cluster Member Name
+	AutoCompactionRetention string
+	AutoCompactionMode      string
 	ListenPeerURL           string
 	ListenClientURL         string
 	InitialCluster          string
@@ -75,6 +83,8 @@ type TLSInfo transport.TLSInfo
 func NewConfig() *Config {
 	c := &Config{}
 	c.DataDir = StateDir
+	c.AutoCompactionRetention = AutoCompactionRetention
+	c.AutoCompactionMode = AutoCompactionMode
 	c.ListenClientURL = ClientListenURL
 	c.ListenPeerURL = PeerListenURL
 	c.InitialCluster = InitialCluster
