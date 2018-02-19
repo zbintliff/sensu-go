@@ -27,11 +27,11 @@ import (
 )
 
 const (
-	// AutoCompactionRetention is the number of key revisions to retain during
-	// etcd compaction.
-	AutoCompactionRetention = "1"
-	// AutoCompactionMode tells etcd to run compaction on revision settings.
-	AutoCompactionMode = compactor.ModeRevision
+	// AutoCompactionRetention tells etcd to purge revisions older than this
+	// time.
+	AutoCompactionRetention = "1m"
+	// AutoCompactionMode tells etcd to run periodic (hourly) compaction.
+	AutoCompactionMode = compactor.ModePeriodic
 	// StateDir is the base path for Sensu's local storage.
 	StateDir = "/var/lib/sensu"
 	// EtcdStartupTimeout is the amount of time we give the embedded Etcd Server
@@ -201,6 +201,8 @@ func NewEtcd(config *Config) (*Etcd, error) {
 	cfg.InitialClusterToken = config.InitialClusterToken
 	cfg.InitialCluster = config.InitialCluster
 	cfg.ClusterState = config.InitialClusterState
+	cfg.AutoCompactionMode = config.AutoCompactionMode
+	cfg.AutoCompactionRetention = config.AutoCompactionRetention
 
 	if config.TLSConfig != nil {
 		cfg.ClientTLSInfo = (transport.TLSInfo)(config.TLSConfig.Info)
