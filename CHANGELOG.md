@@ -34,6 +34,7 @@ except that HookConfig is now embedded in Hook.
 - Removed 3DES from the list of allowed ciphers in the backend and agent.
 - Password input fields are now aligned in  `sensuctl user change-password`
 subcommand.
+- Use megacheck instead of errcheck.
 
 ### Fixed
 - Fixed a bug in time.InWindow that in some cases would cause subdued checks to
